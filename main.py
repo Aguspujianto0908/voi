@@ -1,117 +1,135 @@
 import requests
-import json
 import random
+import json
 import time
+import os
+import threading
 
-# URL API
-LOGIN_URL = "https://api-tg.vooi.io/api/v2/auth/login"
-START_SESSION_URL = "https://api-tg.vooi.io/api/tapping/start_session"
-FINISH_SESSION_URL = "https://api-tg.vooi.io/api/tapping/finish"
-START_AUTO_TRADE_URL = "https://api-tg.vooi.io/api/autotrade/start"
-CLAIM_AUTO_TRADE_URL = "https://api-tg.vooi.io/api/autotrade/claim"
+class Colors:
+    RESET = "\033[0m"
+    DARK_BLUE = "\033[94m"  # Warna biru tua
+    GREEN = "\033[92m"      # Warna hijau
+    RED = "\033[91m"        # Warna merah
+    YELLOW = "\033[93m"     # Warna kuning
 
-# Header untuk request
-headers = {
-    "Accept": "application/json, text/plain, */*",
-    "Content-Type": "application/json",
-    "Origin": "https://app.tg.vooi.io",
-    "Referer": "https://app.tg.vooi.io/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0",
-}
+def print_pattern():
+    # Define the pattern
+    pattern = [
+        " ██████    ██████   ███████   ██    ██  ██   ██",
+        "██    ██  ██        ██    ██  ██    ██  ██  ██",
+        "████████  ████████  ██    ██  ██    ██  █████",
+        "██    ██        ██  ██    ██  ██    ██  ██  ██",
+        "██    ██   ██████   ███████    ██████   ██   ██"
+    ]
 
-# Payload untuk login
-login_payload = {
-    "initData": "user=%7B%22id%22%3A1675657762%2C%22first_name%22%3A%22Budikusuma%20%F0%9F%8D%85%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22Budikusuma0908%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%7D&chat_instance=-5735803826137507506&chat_type=sender&auth_date=1728206252&hash=8ddcb027b3510ff2767215a71ef38e29bb484c0a4634786b069542917c89d634"
-}
+    # Adjust the pattern to fit the terminal width
+    for line in pattern:
+        print(Colors.DARK_BLUE + line + Colors.RESET)
 
-# Fungsi untuk login dan mendapatkan token
-def login():
-    response = requests.post(LOGIN_URL, headers=headers, data=json.dumps(login_payload))
-    if response.status_code in (200, 201):
-        access_token = response.json().get('tokens', {}).get('access_token')
-        if access_token:
-            with open('data.txt', 'w') as file:
-                file.write(f"Access Token: {access_token}\n")
-            print("Access token berhasil disimpan ke data.txt")
-            return access_token
-    print(f"Request gagal dengan status code: {response.status_code}, respon: {response.text}")
-    return None
+# Menampilkan pola di awal
+print_pattern()
 
-# Fungsi untuk memulai sesi tapping
-def start_session(access_token):
-    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
-
+# Memeriksa apakah file data.txt sudah ada dan memiliki konten
+accounts = []
+if not os.path.exists('data.txt') or os.stat('data.txt').st_size == 0:
     while True:
-        print("\n--- Memulai sesi ---")
-        start_response = requests.post(START_SESSION_URL, headers=headers)
-        print(f"Status code: {start_response.status_code}, respon: {start_response.text}")  # Logging detail respon
+        name = input("Masukkan nama akun (atau ketik 'exit' untuk keluar): ")
+        if name.lower() == 'exit':
+            break
+        token = input("Masukkan token otorisasi: ")
         
-        if start_response.status_code in [200, 201]:
-            session_id = start_response.json().get("sessionId")
-            print("Sukses memulai sesi, sessionId:", session_id)
-            time.sleep(30)
-
-            virt_points = random.randint(48, 54)
-            print(f"VirtPoints yang digunakan: {virt_points}")
-
-            finish_payload = {
-                "sessionId": session_id,
-                "tapped": {
-                    "virtMoney": virt_points,
-                    "virtPoints": 0
-                }
-            }
-            finish_response = requests.post(FINISH_SESSION_URL, headers=headers, data=json.dumps(finish_payload))
-            if finish_response.status_code == 200:
-                print("Sukses menyelesaikan sesi:", finish_response.json())
-            else:
-                print("Gagal menyelesaikan sesi:", finish_response.status_code, finish_response.text)
+        # Menanyakan apakah ingin menggunakan proxy
+        use_proxy = input("Apakah Anda ingin menggunakan proxy? (y/n): ").strip().lower()
+        
+        if use_proxy == 'y':
+            proxy = input("Masukkan proxy (contoh: http://user:pass@ip:port) atau ketik 'no' untuk tidak menggunakan proxy: ")
+            if proxy.lower() == 'no':
+                proxy = ''  # Set proxy ke string kosong
         else:
-            # Jika gagal karena token, hanya jika status 401 (Unauthorized)
-            if start_response.status_code == 401:  
-                print("Token tidak valid, mencoba login kembali...")
-                access_token = login()
-                if access_token:
-                    headers["Authorization"] = f"Bearer {access_token}"  # Update header dengan token baru
-                    continue  # Coba lagi dengan token baru
-            print("Gagal memulai sesi:", start_response.status_code, start_response.text)
-        time.sleep(3)
+            proxy = ''
+        
+        add_account_to_file(name, token, proxy)
+        print(f"Akun '{name}' telah ditambahkan.\n")
+else:
+    accounts = edit_accounts_in_file()
 
-# Fungsi untuk memulai perdagangan otomatis
-def start_auto_trade(access_token):
-    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
+# Fungsi untuk menjalankan tugas untuk setiap akun
+def run_account_tasks(account):
+    print(f"\n--- Iterasi untuk {account['name']} ---")
+    
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Authorization": f"Bearer {account['token']}",
+        "Content-Length": "0",
+        "Origin": "https://app.tg.vooi.io",
+        "Referer": "https://app.tg.vooi.io/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site",
+    }
 
-    response = requests.post(START_AUTO_TRADE_URL, headers=headers)
-    if response.status_code == 201:
-        auto_trade_id = response.json()["autoTradeId"]
-        with open("autotrade.txt", "w") as file:
-            file.write(auto_trade_id)
-        print(f"Perdagangan otomatis berhasil dimulai! ID: {auto_trade_id}")
-        return auto_trade_id
-    print(f"Gagal memulai perdagangan otomatis. Kode status: {response.status_code}")
-    return None
+    # Mengatur proxy jika ada
+    proxies = {
+        "http": account['proxy'],
+        "https": account['proxy'],
+    } if account['proxy'] else {}
 
-# Fungsi untuk mengklaim reward
-def claim_reward(auto_trade_id, access_token):
-    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
-    payload = {"autoTradeId": auto_trade_id}
+    start_response = requests.post(start_url, headers=headers, proxies=proxies)
 
-    response = requests.post(CLAIM_AUTO_TRADE_URL, headers=headers, data=json.dumps(payload))
-    if response.status_code == 201:
-        print("Reward berhasil diklaim!", response.json())
+    if start_response.status_code in [200, 201]:
+        start_data = start_response.json()
+        session_id = start_data.get("sessionId")
+        print("Sukses memulai sesi.")
+
+        # Hitung mundur selama countdown_duration
+        for i in range(countdown_duration, 0, -1):
+            print(f"Menunggu {i} detik sebelum menyelesaikan sesi...", end='\r')
+            time.sleep(1)
+
+        print("Selesai menunggu.")
+
+        virt_money = random.randint(48, 54)
+        virt_points = 0
+
+        finish_payload = {
+            "sessionId": session_id,
+            "tapped": {
+                "virtMoney": virt_money,
+                "virtPoints": virt_points
+            }
+        }
+
+        finish_headers = headers.copy()
+        finish_headers["Content-Type"] = "application/json"
+
+        finish_response = requests.post(finish_url, headers=finish_headers, data=json.dumps(finish_payload), proxies=proxies)
+
+        if finish_response.status_code in [200, 201]:
+            finish_data = finish_response.json()
+            tapped_money = finish_data['tapped'].get('virtMoney')
+            print(f"Sukses menyelesaikan sesi. VirtMoney yang ditambahkan ke saldo: {tapped_money}")
+        else:
+            print("Gagal menyelesaikan sesi:", finish_response.status_code)
     else:
-        print(f"Gagal mengklaim reward. Kode status: {response.status_code}")
+        print("Gagal memulai sesi:", start_response.status_code)
 
-# Program utama
-if __name__ == "__main__":
-    token = login()
-    if token:
-        # Memulai sesi tapping
-        start_session(token)
+# Perulangan terus menerus jika ada akun yang valid
+if accounts:
+    while True:
+        threads = []
+        for account in accounts:
+            thread = threading.Thread(target=run_account_tasks, args=(account,))
+            threads.append(thread)
+            thread.start()
 
-        # Memulai perdagangan otomatis
-        auto_trade_id = start_auto_trade(token)
-        if auto_trade_id:
-            print("Menunggu selama 4 jam sebelum mengklaim reward...")
-            time.sleep(14400)  # Tunggu 4 jam
-            claim_reward(auto_trade_id, token)
+        for thread in threads:
+            thread.join()
+
+        # Hitung mundur sebelum iterasi berikutnya
+        for i in range(iteration_pause, 0, -1):
+            print(f"Semua akun telah menjalankan tugas. Menunggu {i} detik sebelum iterasi berikutnya...", end='\r')
+            time.sleep(1)
+
+        print()  # Untuk membuat baris baru setelah hitung mundur selesai
+else:
+    print("Tidak ada akun yang valid untuk dijalankan.")
