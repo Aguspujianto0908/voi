@@ -29,19 +29,23 @@ def add_account_to_file(name, token, proxy):
 
 def edit_accounts_in_file():
     accounts = []
-    with open('data.txt', 'r') as file:
-        for line in file:
-            if line.strip():
-                name, token, proxy = line.strip().split(',', 2)
-                accounts.append({'name': name, 'token': token, 'proxy': proxy})
+    if os.path.exists('data.txt'):
+        with open('data.txt', 'r') as file:
+            for line in file:
+                if line.strip():
+                    parts = line.strip().split(',')
+                    if len(parts) == 3:  # Pastikan ada 3 elemen
+                        name, token, proxy = parts
+                        accounts.append({'name': name, 'token': token, 'proxy': proxy})
     return accounts
 
 # Menampilkan pola di awal
 print_pattern()
 
 # Memeriksa apakah file data.txt sudah ada dan memiliki konten
-accounts = []
-if not os.path.exists('data.txt') or os.stat('data.txt').st_size == 0:
+accounts = edit_accounts_in_file()
+
+if not accounts:  # Jika tidak ada akun
     while True:
         name = input("Masukkan nama akun (atau ketik 'exit' untuk keluar): ")
         if name.lower() == 'exit':
@@ -58,8 +62,7 @@ if not os.path.exists('data.txt') or os.stat('data.txt').st_size == 0:
         
         add_account_to_file(name, token, proxy)
         print(f"Akun '{name}' telah ditambahkan.\n")
-else:
-    accounts = edit_accounts_in_file()
+        accounts = edit_accounts_in_file()  # Refresh akun setelah penambahan
 
 # Fungsi untuk menjalankan tugas untuk setiap akun
 def run_account_tasks(account):
