@@ -13,7 +13,6 @@ class Colors:
     YELLOW = "\033[93m"     # Warna kuning
 
 def print_pattern():
-    # Define the pattern
     pattern = [
         " ██████    ██████   ███████   ██    ██  ██   ██",
         "██    ██  ██        ██    ██  ██    ██  ██  ██",
@@ -21,10 +20,21 @@ def print_pattern():
         "██    ██        ██  ██    ██  ██    ██  ██  ██",
         "██    ██   ██████   ███████    ██████   ██   ██"
     ]
-
-    # Adjust the pattern to fit the terminal width
     for line in pattern:
         print(Colors.DARK_BLUE + line + Colors.RESET)
+
+def add_account_to_file(name, token, proxy):
+    with open('data.txt', 'a') as file:
+        file.write(f"{name},{token},{proxy}\n")
+
+def edit_accounts_in_file():
+    accounts = []
+    with open('data.txt', 'r') as file:
+        for line in file:
+            if line.strip():
+                name, token, proxy = line.strip().split(',', 2)
+                accounts.append({'name': name, 'token': token, 'proxy': proxy})
+    return accounts
 
 # Menampilkan pola di awal
 print_pattern()
@@ -38,9 +48,7 @@ if not os.path.exists('data.txt') or os.stat('data.txt').st_size == 0:
             break
         token = input("Masukkan token otorisasi: ")
         
-        # Menanyakan apakah ingin menggunakan proxy
         use_proxy = input("Apakah Anda ingin menggunakan proxy? (y/n): ").strip().lower()
-        
         if use_proxy == 'y':
             proxy = input("Masukkan proxy (contoh: http://user:pass@ip:port) atau ketik 'no' untuk tidak menggunakan proxy: ")
             if proxy.lower() == 'no':
@@ -68,11 +76,15 @@ def run_account_tasks(account):
         "Sec-Fetch-Site": "same-site",
     }
 
-    # Mengatur proxy jika ada
     proxies = {
         "http": account['proxy'],
         "https": account['proxy'],
     } if account['proxy'] else {}
+
+    start_url = "https://api-tg.vooi.io/api/tapping/start_session"
+    finish_url = "https://api-tg.vooi.io/api/tapping/finish"
+    countdown_duration = 30  # Hitung mundur sebelum menyelesaikan sesi
+    iteration_pause = 3  # Waktu jeda antar iterasi
 
     start_response = requests.post(start_url, headers=headers, proxies=proxies)
 
@@ -81,12 +93,9 @@ def run_account_tasks(account):
         session_id = start_data.get("sessionId")
         print("Sukses memulai sesi.")
 
-        # Hitung mundur selama countdown_duration
         for i in range(countdown_duration, 0, -1):
             print(f"Menunggu {i} detik sebelum menyelesaikan sesi...", end='\r')
             time.sleep(1)
-
-        print("Selesai menunggu.")
 
         virt_money = random.randint(48, 54)
         virt_points = 0
@@ -125,8 +134,7 @@ if accounts:
         for thread in threads:
             thread.join()
 
-        # Hitung mundur sebelum iterasi berikutnya
-        for i in range(iteration_pause, 0, -1):
+        for i in range(3, 0, -1):
             print(f"Semua akun telah menjalankan tugas. Menunggu {i} detik sebelum iterasi berikutnya...", end='\r')
             time.sleep(1)
 
