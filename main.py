@@ -39,12 +39,11 @@ def login():
 
 # Fungsi untuk memulai sesi tapping
 def start_session(access_token):
-    session_headers = headers.copy()
-    session_headers["Authorization"] = f"Bearer {access_token}"
+    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
 
     while True:
         print("\n--- Memulai sesi ---")
-        start_response = requests.post(START_SESSION_URL, headers=session_headers)
+        start_response = requests.post(START_SESSION_URL, headers=headers)
         print(f"Status code: {start_response.status_code}, respon: {start_response.text}")  # Logging detail respon
         
         if start_response.status_code in [200, 201]:
@@ -62,27 +61,27 @@ def start_session(access_token):
                     "virtPoints": 0
                 }
             }
-            finish_response = requests.post(FINISH_SESSION_URL, headers=session_headers, data=json.dumps(finish_payload))
+            finish_response = requests.post(FINISH_SESSION_URL, headers=headers, data=json.dumps(finish_payload))
             if finish_response.status_code == 200:
                 print("Sukses menyelesaikan sesi:", finish_response.json())
             else:
                 print("Gagal menyelesaikan sesi:", finish_response.status_code, finish_response.text)
         else:
-            # Jika gagal karena token, coba login kembali
-            if start_response.status_code == 401:  # Unauthorized
+            # Jika gagal karena token, hanya jika status 401 (Unauthorized)
+            if start_response.status_code == 401:  
                 print("Token tidak valid, mencoba login kembali...")
                 access_token = login()
                 if access_token:
+                    headers["Authorization"] = f"Bearer {access_token}"  # Update header dengan token baru
                     continue  # Coba lagi dengan token baru
             print("Gagal memulai sesi:", start_response.status_code, start_response.text)
         time.sleep(3)
 
 # Fungsi untuk memulai perdagangan otomatis
 def start_auto_trade(access_token):
-    auto_trade_headers = headers.copy()
-    auto_trade_headers["Authorization"] = f"Bearer {access_token}"
+    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
 
-    response = requests.post(START_AUTO_TRADE_URL, headers=auto_trade_headers)
+    response = requests.post(START_AUTO_TRADE_URL, headers=headers)
     if response.status_code == 201:
         auto_trade_id = response.json()["autoTradeId"]
         with open("autotrade.txt", "w") as file:
@@ -94,11 +93,10 @@ def start_auto_trade(access_token):
 
 # Fungsi untuk mengklaim reward
 def claim_reward(auto_trade_id, access_token):
-    claim_headers = headers.copy()
-    claim_headers["Authorization"] = f"Bearer {access_token}"
+    headers["Authorization"] = f"Bearer {access_token}"  # Mengupdate header dengan token
     payload = {"autoTradeId": auto_trade_id}
 
-    response = requests.post(CLAIM_AUTO_TRADE_URL, headers=claim_headers, data=json.dumps(payload))
+    response = requests.post(CLAIM_AUTO_TRADE_URL, headers=headers, data=json.dumps(payload))
     if response.status_code == 201:
         print("Reward berhasil diklaim!", response.json())
     else:
